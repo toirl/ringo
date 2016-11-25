@@ -33,13 +33,14 @@
                       actions.append(action)
             %>
             % if len(actions) == 1:
-              ${render_link(actions[0], clazz)}
+              ${render_link(actions[0], clazz, True)}
             % elif len(actions) > 1:
+              ${render_link(actions[0], clazz, True)}
               <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>
               <ul class="dropdown-menu">
                 % for action in actions:
                 <li>
-                  ${render_link(action, clazz)}
+                  ${render_link(action, clazz, False)}
                 </li>
                 % endfor 
               </ul>
@@ -55,7 +56,7 @@
     ${listing}
   </div>
 </div>
-<%def name="render_link(action, clazz)">
+<%def name="render_link(action, clazz, button=True)">
   <%
     url = request.route_path(h.get_action_routename(clazz, action.name.lower()))
     if action.description:
@@ -74,5 +75,9 @@
     else:
       name = action.name
   %>
-  <a href="${url}" title="${title}" class="btn btn-primary"><i class="${icon}">&nbsp;</i>${name}</a>
+  % if button:
+    <a href="${url}" title="${title}" class="btn btn-primary"><i class="${icon}">&nbsp;</i>${name}</a>
+  % else:
+    <a href="${url}" title="${title}"><i class="${icon}">&nbsp;</i>${name}</a>
+  % endif
 </%def>
