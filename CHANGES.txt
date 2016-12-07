@@ -1,5 +1,5 @@
-Next
-====
+1.15.0
+======
 - Bugfix for "app.mode" config option. App mode was broken for all modes
   execept "testing" because the test db request was accessed in all cases even
   if its not present
@@ -8,6 +8,9 @@ Next
   attribute which defaults to "uuid".
 - Added "renderer" config option to the overview configuration. This lets you
   set a custom renderer for a column.
+- Added "hidden" and "searchable" configuration options to the tableconfig.
+  This allows to define which field are searchable. Can be combined to make
+  hiddenfields searchable.
 
 1.14.0
 ======
