@@ -1,4 +1,4 @@
-% if field.is_readonly():
+% if field.readonly:
   <div class="readonlyfield" name="${field.name}" value="${field.get_value()}">
     % if field.get_previous_value() is not None:
       ${renderer._render_diff(_(field.get_previous_value("", expand=True)),
@@ -16,7 +16,7 @@
     % endfor
   </div>
 % else:
-  <select class="form-control" id="${field.id}" name="${field.name}">
+  <select class="form-control" id="${field.id}" name="${field.name}" datatype="${get_field_type(field)}">
     % for option in options:
       ## Depending if the options has passed the configured filter the
       ## option will be visible or hidden

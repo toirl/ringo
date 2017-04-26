@@ -1,3 +1,68 @@
+1.17.0
+======
+Introduced RingoRequest object. The object is available as "request.ringo" in
+the current request and will become the central place to access request
+related attribute in context of the Ringo application. The object provides an
+API to make getting often used values more easy.
+
+* Started to move getting certain values from the request into the
+  request.ringo object:
+  	- Access History: request.ringo.history 
+  	- Access Query parameters : request.ringo.params
+* Added Featuretoggles through the "request.ringo.feature" object. See
+  documentation for more details
+* Added new configuration var "app.history.ignore" to add URLs which must not
+  be added to the history.
+
+1.16.1
+======
+This updated includes an optional DB Upgrade to add a UNIQUE constraint on
+some NM tables. This helps to ensure data integrity of the application.
+However this update is not mandatory and can be applied later.
+
+- Added unique constraints on nm_user_roles, nm_user_usergroups and
+  nm_action_roles table.
+- Added app.locale config var to enforce locale setting of the application.
+- Added additional attribute to configure the action called when clicking on a
+  item in the Listingfieldrenderer.
+- Improved documentation
+
+1.16.0
+======
+- Added new config vars for application to allow better customisation
+  (branding) of applications:
+  * app.logo
+  * app.customstatic
+  See documentation for more details.
+- Allow multiple search filters in overview!
+
+- Improved documentation
+- Fix #16 Do not save "addrelation" paramenter in session
+- Fix #33 Set relations on creation before saving the item to prevent
+- Fix #35 Added Json Datatype for columns violation of NOT NULL contraints.
+- Added `strict` flag to get_values method. Set this to False to suppress
+  error logging in case a attribute can not be found.
+- Removed wrong "login logging" if a user changes his password.
+
+1.15.4
+======
+- Added (default) option to define the loadkey on import to the config.
+- Added missing adding to the db session while import (Only in some
+  circumstances, unknown which exactly). Seems so be forgotten.
+  At least tests shows that this does not work otherwise. 
+
+1.15.3
+======
+- Bugfix. Added missing datatype attribute in dropdown fields.
+
+1.15.2
+======
+- Removed wrong "login logging" if a user changes his password.
+
+1.15.1
+======
+- Added loginname to emails when registering a new account.
+
 1.15.0
 ======
 - Bugfix for "app.mode" config option. App mode was broken for all modes

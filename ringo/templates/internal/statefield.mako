@@ -1,5 +1,5 @@
 % if field.renderer.layout == "button":
-  <label for="${field.id}">${field.label}</label>
+  <label for="${field.id}">${_(field.label)}</label>
   <div class="readonlyfield" name="${field.name}">
       ${_(state._label)}
       ## The value is changed by JS in case the user clicks on the
@@ -35,7 +35,7 @@
     <label for="${field.id}">${_(field.label)}</label>
   </div>
   <div class="panel-body">
-    % if not field.is_readonly():
+    % if not field.readonly:
     <p>
       <strong>${_('State transition')}:</strong><br/>
       <select id="${field.id}" name="${field.name}" class="form-control">

@@ -22,7 +22,7 @@ from ringo.views.request import (
 
 from ringo.lib.form import get_form_config
 from ringo.lib.helpers import import_model, get_action_routename
-from ringo.lib.security import login, encrypt_password, has_permission
+from ringo.lib.security import verify_password, load_user, encrypt_password, has_permission
 from ringo.lib.sql.cache import invalidate_cache
 
 User = import_model('ringo.model.user.User')
@@ -54,7 +54,7 @@ def check_password(field, data):
     """Validator function as helper for formbar validators"""
     password = data[field]
     username = data["login"]
-    return bool(login(username, password))
+    return verify_password(password, load_user(username).password)
 
 
 def user_update_callback(request, user):
@@ -143,7 +143,7 @@ def create_(request, callback=None):
              renderer='/default/update.mako',
              permission='update')
 def update_(request, callback=None, renderers=None,
-           validators=None, values=None):
+            validators=None, values=None):
     user = get_item_from_request(request)
     # Store the login name of the user in the request to make it
     # available in the callback
@@ -200,8 +200,8 @@ def setstandin(request, allowed_users=None):
     # For normal users users shall only be allowed to set the standin
     # for their own usergroup. So check this and otherwise raise an exception.
     usergroup = get_item_from_request(request)
-    if (usergroup.id != request.user.default_gid
-       and not has_permission("update", usergroup, request)):
+    if (usergroup.id != request.user.default_gid and
+       not has_permission("update", usergroup, request)):
         raise HTTPForbidden()
 
     clazz = Usergroup
@@ -368,14 +368,16 @@ def removeaccount(request):
     rvalue['form'] = form.render(page=get_current_form_page(clazz, request))
     return rvalue
 
+
 @view_config(route_name='users-accountremoved',
              renderer='/users/accountremoved.mako')
 def accountremoved(request):
     return {}
 
+
 def role_name_create_validator(field, data, db):
     """Validator to ensure username uniqueness when creating users"""
-    return db.query(Role).filter(Role.name== data[field]).count() == 0
+    return db.query(Role).filter(Role.name == data[field]).count() == 0
 
 
 def role_name_update_validator(field, data, params):
@@ -385,6 +387,7 @@ def role_name_update_validator(field, data, params):
     # Only consider names for the other users
     return db.query(Role).filter(Role.name == data[field],
                                  ~(Role.id == params['pk'])).count() == 0
+
 
 @view_config(route_name=get_action_routename(Role, 'create'),
              renderer='/default/create.mako',
@@ -410,7 +413,7 @@ def role_create_(request, callbacks=None):
              renderer='/default/update.mako',
              permission='update')
 def role_update_(request, callback=None, renderers=None,
-           validators=None, values=None):
+                 validators=None, values=None):
     role = get_item_from_request(request)
     # Store the name of the role in the request to make it
     # available in the callback

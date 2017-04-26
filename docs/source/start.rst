@@ -245,6 +245,37 @@ Voilà! That is it.
 Tutorials
 #########
 
+************************************
+How to make config changes permanent
+************************************
+Ringo allows to change the configuration of the application through the UI in
+many ways. You can add new roles, set permissions etc. All those changes are
+done in the database.
+As those changes will get lost when dropping and recreating the database we
+need a way to make save these changes in a way that they do not get lost when
+reinitialize the application.
+
+The typical way is to write a migration script and to put the changes you made
+into this script. An empty migration script can be generated like this::
+
+        ringo-admin db revision
+
+An easy way to get the changes in the database is to diff between the dump of
+the database. On dump is done before the changes are mare::
+
+        DB=ringo
+        pg_dump -a --column-inserts $DB | grep INSERT > $DB.dump.pre
+
+Now you can do the changes in the application and dump the database again::
+
+        pg_dump -a --column-inserts $DB | grep INSERT > $DB.dump.post
+
+Finally you diff the two dumps and ideally get the changes made in the
+database ready to put into the migration script::
+
+        diff $DB.dump.pre $DB.dump.post | grep INSERT | sed -e 's/> //g' > inserts.sql
+
+
 *****************
 Work with modules
 *****************
@@ -471,7 +502,7 @@ Now SQL statements for the migration script will be::
 As always when manually inserting something in the database call the
 fixsequence command::
 
-        ringo-admin db fixsequence
+        ringo-admin db fixsequence/gp_dump
 
 
 Setup breadcrumbs
@@ -694,17 +725,29 @@ Ringo comes with some specific renderers which extends the default renderers
 of formbar. They usually are aware of accessing to Ringo specific attributes
 like permissions checks e.g.
 
+.. index::
+   triple: Form;Renderer;Checkbox
+
 Checkbox
 --------
 .. autoclass:: ringo.lib.renderer.form.CheckboxFieldRenderer
+
+.. index::
+   triple: Form;Renderer;Dropdown
 
 Dropdown
 --------
 .. autoclass:: ringo.lib.renderer.form.DropdownFieldRenderer
 
+.. index::
+   triple: Form;Renderer;Links
+
 Links
 -----
 .. autoclass:: ringo.lib.renderer.form.LinkFieldRenderer
+
+.. index::
+   triple: Form;Renderer;Listings
 
 Listings
 --------
@@ -1121,9 +1164,35 @@ overwriting the ``_get_permissions`` class method of the BaseItem in your model:
 
         return permissions
 
-.. todo::
-        Write about inheritance of authorisation
+Ownership inheritance
+=====================
+It is possible inherit the ownership (uid, gid) of a element from a
+related element when *saving* the item. Inheritance of ownership means to
+set the ownership of the item based on the  ownership of another item
+and **not** with the uid, gid of the current user or other permission
+settings like default groups.
 
+.. note::
+    Setting the inherited uid or gid only happens when saving the item
+    explicit using the `save` method of the BaseItem. On default this is
+    only the case when creating new items.
+
+A typicall usecase is to grant users access to the item if they are
+allowed to access a related (often parent) item by inheriting the uid
+and gid.
+
+To inherit the ownership you must set a special attribute in the model::
+
+    class Foo(BaseItem):
+        _inherit_gid = "parent"
+        _inherit_uid = "parent"
+
+        ...
+        parent = sa.orm.relation(Bar)
+
+You need to define the name of the relation to the item where the uid
+and gid will be taken from. Please note that you can also set only one
+of the attibutes.
 
 ***********************************
 Inheritance from other applications
@@ -1376,14 +1445,14 @@ these roles.
 If the user is the owner of the item, or is member of the items group, then
 all permissions of the users roles will be applied.
 
+.. index::
+   double: Authentification;Roles
 .. _roles:
 
 Roles
 -----
 
-..  TODO: Write roles section (ti) <2016-11-11 20:13> 
-
-
+.. autoclass:: ringo.model.user.Role
 
 
 .. _authentification:
@@ -1400,6 +1469,8 @@ The authentification has a default timeout of 30min. The timeout will be reset
 after every new request of the user. The timeout can be configured in the
 application configuration bei setting the 'auth.timeout' config variable.
 
+.. index::
+   double: Authentification;Anonymous Access
 .. _authorisation:
 
 Anonymous Authentification
@@ -1408,22 +1479,34 @@ On default Ringo does not provide an anonymous access to the application
 (Despite of some static pages). So you must login before you can work with the
 application and have appropriate permissions.
 
+Anonymous access in Ringo is implemented by using a Proxy-User. This user must
+be existent in the database and properly configured. To enable anonymous
+access to the application you must configure this user as anonymous user. See
+:ref:`anonymous_access` for more details.
+
+If enabled every request to the application will automatically be 
+authenticated with the configured anonymous user (As long as the User is not 
+already logged in). The request will be done with all configured permissions 
+of the roles the configured anonymous has. So you can configure in details 
+which permissions a anonymous user will have.
+
+.. warning::
+        Be careful with the configuration of the anonymous user. Double check
+        the permissions of the anonymous user and check the configuration in
+        the ini file and make sure you did not configure a high privileged
+        user like the admin as anonymous user.
+
 To implement an anonymous access to the application you will need to do
 three things:
 
 1. Create a dedicated user which will be used as the anonymous user.
-2. Create roles with appropriate permissions on the different moduels to
+2. Create roles with appropriate permissions on the different modules to
    grant this anonymous user access on the data. Please note, that these
    roles must be "admin"  roles to disable the owner/group check on
    authorisation as we want the anonymous user to be able to basically
    all items. The only restriction is than configured by the permissions
    of the role.
-3. Enable this anonymous user in the `ini` file. See
-   :ref:`anonymous_access` for more details.
-
-
-
-
+3. Enable this anonymous user in the `ini` file.
 
 Authorisation
 -------------
@@ -1530,6 +1613,9 @@ States and Workflows
 ********************
 .. automodule:: ringo.model.statemachine
 
+.. index::
+   double: Configuration; Application
+
 #############
 Configuration
 #############
@@ -1543,8 +1629,10 @@ Application
 Helper methods giving access to the configuration options are available in the `appinfo` module.
 
 .. automodule:: ringo.lib.helpers.appinfo
-   :members: get_app_mode, get_app_title, get_app_inheritance_path
+   :members: get_app_mode, get_app_title, get_app_logo, get_app_inheritance_path
 
+.. index::
+   single: Configuration; Title
 
 Title
 =====
@@ -1555,6 +1643,39 @@ can be configured with the following varible.
 
 The title is available using the :func:`get_app_title` function.
 
+.. index::
+   single: Configuration; Custom static files
+   see: Branding; Configuration
+
+Custom static directory
+=======================
+It is possible to define a directory to include custom static files which
+should not be part of the application. This can be usefull for application
+branding to place custom logo graphics etc. You can define the path to the
+root of that custom static folder.
+
+* app.customstatic = /path/to/your/folder
+
+If not defined it will be ringo:static.
+
+.. index::
+   single: Configuration; Logo
+
+Logo
+====
+The logo of the application used in the header of the page. You can define a
+path to the logo relative to the given custom static directory which should be
+displayed. If no logo is set then no logo is displayed at all.
+
+If you need more customization on the logo, then you need to overwrite the
+logo.mako template.
+
+* app.logo = images/ringo-logo-64.png
+
+The logo is available using the :func:`get_app_logo` function.
+
+.. index::
+   double: Configuration; Inheritance
 .. _config_app_base:
 
 Application Base
@@ -1569,7 +1690,7 @@ If your application is based on another ringo based application you can
 configure the name of the application here. Setting this configuration
 will modify the inheritance path of the application.
 
-The inhertance_path is available using the :func:`get_app_inheritance_path`
+The inheritance_path is available using the :func:`get_app_inheritance_path`
 function.
 
 Example:
@@ -1580,6 +1701,20 @@ This has consequences for the loading of form and table configurations.
 When trying to load form or table configuration ringo will iterate over
 the inheritance path and try to load the configuration from each
 application within the inheritance path.
+
+Application Locale
+==================
+The locale is used to format dates times in the application.  On default Ringo
+determines the locale by looking into the request getting the browser language
+setting. However you can enforce setting the locale of the application by
+setting the following config variable in your config
+
+* app.locale =
+
+If added (In the mean of adding the variable at all) the locale will be
+enforced. An empty value means use a "default" encoding which leads to dates
+formatted in ISO8601. Otherwise the locale must match a known ISO-3166 locale
+string.
 
 Application Mode
 ================
@@ -1607,6 +1742,17 @@ such as hexadecimal or RGB values, named colors, etc.
 The mode is available using the :func:`get_app_mode` function.
 
 .. index:: Testing mode
+
+History ignores
+===============
+You can configure URL which will be ignored in history. This is often needed
+in case you do AJAX requests to fetch data. As you do not want those URL be
+part of the history you can configure to ignore those URLs.
+
+* app.history.ignore = /foo,/bar,/baz
+
+The ignore list is a comma separated list of fragments of an URL. The code
+will check if the current URL starts with one of the defined ignores.
 
 Cache
 =====
@@ -2045,20 +2191,40 @@ separated.
 ****
 Mail
 ****
+The configuration of the Mail system is described in detail in the
+`documentation of the pyramid_mailer library
+<http://docs.pylonsproject.org/projects/pyramid_mailer/en/latest/#configuration>`_
+
+Below you find a show overview of the most common used settings. If you need
+more of the settings it is save to add them to your configuration.
+
+
  * mail.host =
+
+This is the host where your MTA will listen on port 25 to receive the mails
+which it will transfer to the recipients.
+
  * mail.default_sender =
+
+This is the default sender email (From:) of the mails sent from this
+application. Often this will be changed within the application anyway but we
+need to be sure we have a default sender. Often this is a "noreply@foo.bar"
+address.
+
  * mail.username =
  * mail.password =
+
+In case your MTA requires some sort of authentication you can set it here.
 
 *********
 Converter
 *********
-.. note::
-   To be able to use the converter you need to install the "converter" extra
-   requirements. See ``setup.py`` file for more details.
+The converter has become part of the `ringo printtemplates
+extension <https://github.com/ringo-framework/ringo_printtemplates>`_. It is
+used to convert ODS files into PDF files.
 
- * converter.start = false
- * converter.pythonpath =
+Please see the README of the library for more details on how to configure the
+converter.
 
 ###############
 CLI ringo-admin

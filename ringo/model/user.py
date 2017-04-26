@@ -23,19 +23,22 @@ password_reset_requests = sa.Table(
 nm_user_roles = sa.Table(
     'nm_user_roles', Base.metadata,
     sa.Column('uid', sa.Integer, sa.ForeignKey('users.id')),
-    sa.Column('rid', sa.Integer, sa.ForeignKey('roles.id'))
+    sa.Column('rid', sa.Integer, sa.ForeignKey('roles.id')),
+    sa.UniqueConstraint('uid', 'rid')
 )
 
 nm_user_usergroups = sa.Table(
     'nm_user_usergroups', Base.metadata,
     sa.Column('uid', sa.Integer, sa.ForeignKey('users.id')),
-    sa.Column('gid', sa.Integer, sa.ForeignKey('usergroups.id'))
+    sa.Column('gid', sa.Integer, sa.ForeignKey('usergroups.id')),
+    sa.UniqueConstraint('uid', 'gid')
 )
 
 nm_action_roles = sa.Table(
     'nm_action_roles', Base.metadata,
     sa.Column('aid', sa.Integer, sa.ForeignKey('actions.id')),
-    sa.Column('rid', sa.Integer, sa.ForeignKey('roles.id'))
+    sa.Column('rid', sa.Integer, sa.ForeignKey('roles.id')),
+    sa.UniqueConstraint('aid', 'rid')
 )
 
 
@@ -198,10 +201,20 @@ class Usergroup(BaseItem, Owned, Base):
 
 
 class Role(BaseItem, Owned, Base):
-    """A Role is used to configure which actions are permitted to users.
-    Therefor each role will have an internal list of modul actions. A
-    user will be allowed to call all actions assigned to the role he is
-    equiped with."""
+    """Roles are used to configure which actions on a specific modul are
+    permitted to users. Roles are important during the permission checks
+    to determine what the user can so which an item of a certain modul.
+    However a role does not determine if the user has access to the item
+    at all. This is left to the ownership checks. However a role can be
+    configured to be a 'administration role'. This means every user who
+    has this role will pass the ownership check during the permission
+    checks even if the user is not the owner or in the group of the item
+    he wants to.
+
+    The specific actions a user is allowed to do on a item are stored in
+    a internal list of ActionsItems. A user will be allowed to call all
+    actions assigned to the role he is equipped with.
+    """
     __tablename__ = 'roles'
     _modul_id = 5
     id = sa.Column(sa.Integer, primary_key=True)
@@ -209,7 +222,7 @@ class Role(BaseItem, Owned, Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
     description = sa.Column(sa.Text, nullable=False, default='')
     admin = sa.Column(sa.Boolean, default=False)
-    """Flag to set the role as administrational role which means that
+    """Flag to set the role as administration role which means that
     the user will gain the assigned permissions irrespective from
     checking the ownership"""
 
